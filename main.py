@@ -103,6 +103,30 @@ def reserve_daily_question(uid: str) -> int:
     return update_usage(transaction)
 
 
+def refund_daily_question(uid: str) -> None:
+    day_key = datetime.now(TURKEY_TZ).strftime("%Y-%m-%d")
+    reference = db.collection("users").document(uid).collection("usage").document(day_key)
+    transaction = db.transaction()
+
+    @google_firestore.transactional
+    def update_usage(txn):
+        snapshot = reference.get(transaction=txn)
+        data = snapshot.to_dict() or {}
+        count = max(0, int(data.get("count", 0)) - 1)
+        txn.set(
+            reference,
+            {
+                "count": count,
+                "date": day_key,
+                "updatedAt": firestore.SERVER_TIMESTAMP,
+                "source": "backend",
+            },
+            merge=True,
+        )
+
+    update_usage(transaction)
+
+
 def clean_json(text: str) -> dict:
     value = text.strip()
     if value.startswith("```json"):
@@ -206,10 +230,12 @@ def solve_question(request: ImageQuestionRequest, uid: str = Depends(current_uid
         )
         return normalize_solution(clean_json(response.output_text))
     except json.JSONDecodeError as error:
+        refund_daily_question(uid)
         raise HTTPException(status_code=500, detail="Yapay zekâ geçerli yanıt döndürmedi.") from error
     except HTTPException:
         raise
     except Exception as error:
+        refund_daily_question(uid)
         raise HTTPException(status_code=500, detail="Soru şu anda yanıtlanamadı.") from error
 
 
@@ -226,10 +252,12 @@ def ask_text(request: TextQuestionRequest, uid: str = Depends(current_uid)):
         response = client.responses.create(model=MODEL_NAME, input=prompt)
         return normalize_solution(clean_json(response.output_text))
     except json.JSONDecodeError as error:
+        refund_daily_question(uid)
         raise HTTPException(status_code=500, detail="Yapay zekâ geçerli yanıt döndürmedi.") from error
     except HTTPException:
         raise
     except Exception as error:
+        refund_daily_question(uid)
         raise HTTPException(status_code=500, detail="Soru şu anda yanıtlanamadı.") from error
 
 
@@ -258,8 +286,10 @@ def coach(request: CoachRequest, uid: str = Depends(current_uid)):
             "todayTask": result.get("todayTask", "Bugün küçük bir adımla başlayın."),
         }
     except json.JSONDecodeError as error:
+        refund_daily_question(uid)
         raise HTTPException(status_code=500, detail="Yapay zekâ geçerli yanıt döndürmedi.") from error
     except HTTPException:
         raise
     except Exception as error:
+        refund_daily_question(uid)
         raise HTTPException(status_code=500, detail="Koç yanıtı şu anda alınamadı.") from error
