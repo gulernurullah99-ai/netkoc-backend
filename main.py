@@ -34,8 +34,9 @@ initialize_firebase_admin()
 db = firestore.client()
 
 SAFETY_MESSAGE = (
-    "Bu istek NetKoç'un güvenli eğitim kapsamına uygun değil. "
-    "NetKoç yalnızca dersler, sınav hazırlığı, çalışma planı ve öğrenci gelişimi konularında yardımcı olabilir."
+    "NetKoç burada öğrenme yolculuğuna destek olmak için var. "
+    "Bu soru eğitim kapsamının dışında kalıyor; ancak dersler, sınavlar, "
+    "çalışma planları ve motivasyon konularında yardımcı olmaya hazır. 🌟"
 )
 
 
