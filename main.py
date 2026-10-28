@@ -58,6 +58,13 @@ class CoachRequest(BaseModel):
     examGoal: str | None = None
 
 
+class CoachResponse(BaseModel):
+    title: str
+    advice: str
+    steps: list[str]
+    todayTask: str
+
+
 def current_uid(authorization: str | None = Header(default=None)) -> str:
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Oturum doğrulanamadı. Lütfen yeniden giriş yapın.")
@@ -178,7 +185,8 @@ def moderation_flagged(input_value) -> bool:
 def education_scope_allowed(text: str) -> bool:
     prompt = (
         "Bir öğrenci uygulaması için kapsam denetimi yap. Yalnızca okul dersleri, akademik sorular, "
-        "sınav hazırlığı, ödev desteği, çalışma planı, eğitim motivasyonu ve öğrenci gelişimi uygundur. "
+        "sınav hazırlığı, IELTS, TOEFL, YDS ve diğer dil sınavları, yabancı dil öğrenimi, "
+        "ödev desteği, çalışma planı, eğitim motivasyonu ve öğrenci gelişimi uygundur. "
         "Yetişkin/cinsel, şiddet, yasa dışı, nefret, taciz, kendine zarar verme ve eğitim dışı genel sohbet uygun değildir. "
         "Yalnızca ALLOW veya BLOCK yaz.\nKullanıcı mesajı: " + text
     )
@@ -277,14 +285,15 @@ def coach(request: CoachRequest, uid: str = Depends(current_uid)):
         '"todayTask":"bugünkü görev"}'
     )
     try:
-        response = client.responses.create(model=MODEL_NAME, input=prompt)
-        result = clean_json(response.output_text)
-        return {
-            "title": result.get("title", "NetKoç önerisi"),
-            "advice": result.get("advice", "Öneri üretilemedi."),
-            "steps": result.get("steps", []),
-            "todayTask": result.get("todayTask", "Bugün küçük bir adımla başlayın."),
-        }
+        response = client.responses.parse(
+            model=MODEL_NAME,
+            input=prompt,
+            text_format=CoachResponse,
+        )
+        result = response.output_parsed
+        if result is None:
+            raise ValueError("Koç yanıtı ayrıştırılamadı.")
+        return result.model_dump()
     except json.JSONDecodeError as error:
         refund_daily_question(uid)
         raise HTTPException(status_code=500, detail="Yapay zekâ geçerli yanıt döndürmedi.") from error
