@@ -3,3 +3,12 @@ __pycache__/
 *.pyc
 .env
 OPENAI_API_KEY*
+build/
+.dart_tool/
+.gradle/
+.idea/
+android/key.properties
+*.jks
+*.keystore
+*.bak
+.venv/
