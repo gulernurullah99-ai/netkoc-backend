@@ -53,7 +53,7 @@ class TextQuestionRequest(BaseModel):
 
 
 class CoachRequest(BaseModel):
-    message: str = Field(min_length=2, max_length=6000)
+    message: str = Field(min_length=1, max_length=6000)
     gradeLevel: str | None = None
     examGoal: str | None = None
 
@@ -271,14 +271,20 @@ def ask_text(request: TextQuestionRequest, uid: str = Depends(current_uid)):
 
 @app.post("/coach")
 def coach(request: CoachRequest, uid: str = Depends(current_uid)):
-    ensure_text_allowed(request.message)
+    coach_context = (
+        f"Sınav veya eğitim hedefi: {request.examGoal or 'belirtilmedi'}. "
+        f"Öğrencinin mesajı: {request.message}"
+    )
+    ensure_text_allowed(coach_context)
     reserve_daily_question(uid)
     prompt = (
         "Yalnızca eğitim amacıyla yanıt ver. Sen NetKoç adlı destekleyici ve gerçekçi bir eğitim koçusun. "
         "Somut, uygulanabilir ve ölçülebilir öneriler ver. "
         f"Sınıf seviyesi: {level_text(request.gradeLevel)}. "
         f"Sınav veya hedef: {request.examGoal or 'belirtilmedi'}. "
-        f"Öğrencinin mesajı: {request.message}\n"
+        f"Öğrencinin mesajı: {request.message}. "
+        "Mesaj yalnızca bir sayıysa bunu sınav puanı, hedef, seviye veya çalışma süresi "
+        "olarak eğitim bağlamında yorumla; yetişkin içerik olarak yorumlama.\n"
         "Sadece geçerli JSON döndür. Markdown kullanma. "
         '{"title":"başlık","advice":"açıklama",'
         '"steps":["1. adım","2. adım","3. adım"],'
